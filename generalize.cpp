@@ -21,11 +21,15 @@ int main(int argc, char * argv[])
    
    std::string indir, topdir = "../data/single_radar_station/full_year/", station, input_directory, output_directory;
    std::string outpath = "../output/generalize/";
-   //int asc_header_size = 6;
-   double min_dBZ = -5;
-   double max_dBZ = 80;
    int xsize = 300;
    int ysize = 300;
+      
+   // min_dBZ and max_dBZ are used to map decibel reflectivity dBZ to the interval (0, 1)
+   // set min_dBZ and max_dBZ beyond dBZ range (0, 75) so derivative of cross entropy cost
+   // will be defined even when dBZ forecast is to be 0 or 75
+   
+   double min_dBZ = -5;
+   double max_dBZ = 80;
    
    // Default parameters
 
@@ -217,9 +221,7 @@ int main(int argc, char * argv[])
    for(int i = 1; i < number_total_layers - 1; i ++){
       number_neurons[i] = neurons_per_layer;
    }
-   number_neurons[number_total_layers - 1] = time_depth_future;
-   
-   long long int batch_count = 0;
+   number_neurons[number_total_layers - 1] = time_depth_future;   
    double **bias_average = new double*[number_total_layers];
    double ***weight_average = new double**[number_total_layers];
    double ***cost = new double**[ysize];
@@ -273,6 +275,9 @@ int main(int argc, char * argv[])
    
    input_neural_network(input_directory, y_start_train, y_end_train, x_start_train, x_end_train, number_total_layers, number_neurons, bias_average, weight_average);
       
+   // Additional variables
+   
+   long long int batch_count = 0;
    std::string slashstring = "/", yearstring, filename_string;
    int counter, first = 1;
 
@@ -299,12 +304,11 @@ int main(int argc, char * argv[])
                
                parse_time(p.filename().string(), year, counter, time_depth, minutes);
                
-               // Read data from file
+               // Read radar data prepared in uniform binary format
                
-               //std::cout << p << std::endl;
                read_from_file_binary_limited(p.string(), xsize, ysize, x_start_test - (x_width - 1) / 2, x_end_test + (x_width - 1) / 2, y_start_test - (y_width - 1) / 2, y_end_test + (y_width - 1) / 2, counter % time_depth, time_depth, data);
                
-               // Calculate cost
+               // Feed neural network forward through generalization set
                
                feed_forward_generalize(data, min_dBZ, max_dBZ, y_start_test, y_end_test, x_start_test, x_end_test, minutes, counter, time_depth, time_depth_past, time_depth_future, interval, y_width, x_width, number_total_layers, number_neurons, activation, weighted_input, bias_average, weight_average, cost, cost_persistent, &batch_count, sigmoid_function, sigmoid_function_derivative, quadratic_function, 0, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage);
                counter ++;
@@ -312,6 +316,10 @@ int main(int argc, char * argv[])
          }
       }
    }
+   
+   // Output average quadratic costs and forecast-observation correlations on generalization set,
+   // obtained both from the neural network and (for comparison) from assuming Eulerian persistence
+   
    output_generalization_cost(output_directory, y_start_test, y_end_test, x_start_test, x_end_test, number_total_layers, number_neurons, cost, cost_persistent, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage, &batch_count);
    
    // Delete arrays

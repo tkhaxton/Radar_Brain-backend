@@ -21,15 +21,16 @@ int main(int argc, char * argv[])
    
    std::string indir, topdir = "../data/single_radar_station/full_year/", station, output_directory;
    std::string outpath = "../output/learn/";
-   
-   // Set range beyond data range (0, 75) so derivative of cross entropy cost
-   // will be defined even when forecast is 0 or 75
-   
-   double min_dBZ = -5;
-   double max_dBZ = 80;
    int xsize = 300;
    int ysize = 300;
    int do_delete = 1, do_delete_validate = 1;
+   
+   // min_dBZ and max_dBZ are used to map decibel reflectivity dBZ to the interval (0, 1)
+   // set min_dBZ and max_dBZ beyond dBZ range (0, 75) so derivative of cross entropy cost
+   // will be defined even when dBZ forecast is to be 0 or 75
+   
+   double min_dBZ = -5;
+   double max_dBZ = 80;
    
    // Default parameters
 
@@ -220,8 +221,6 @@ int main(int argc, char * argv[])
       number_neurons[i] = neurons_per_layer;
    }
    number_neurons[number_total_layers - 1] = time_depth_future;
-   
-   long long int batch_count = 0, output_batch_count = 0, overall_batch_count = 0, validation_batch_count = 0;
    double ****bias = new double***[ysize];
    double *****weight = new double****[ysize];
    double ***cost = new double**[ysize];
@@ -230,7 +229,6 @@ int main(int argc, char * argv[])
    double ***cost_validation_persistent = new double**[ysize];
    double ****dcost_dbias = new double***[ysize];
    double *****dcost_dweight = new double****[ysize];
-   //double **squareaverage = new double*[ysize];
    double ***forecast_squareaverage = new double**[ysize];
    double ***forecast_persistent_squareaverage = new double**[ysize];
    double ***observation_squareaverage = new double**[ysize];
@@ -238,6 +236,8 @@ int main(int argc, char * argv[])
    double ***forecast_observation_correlation_persistent = new double**[ysize];
    
    // Nest by location on outside because locations are treated independently
+   // Note that this code can be used to generate independent neural networks for each location,
+   // but this would require significant cpu time (i.e. multiple cores)
    
    for(int i = y_start; i < y_end; i ++){
       bias[i] = new double**[xsize];
@@ -248,7 +248,6 @@ int main(int argc, char * argv[])
       cost_validation_persistent[i] = new double*[xsize];
       dcost_dbias[i] = new double**[xsize];
       dcost_dweight[i] = new double***[xsize];
-      //squareaverage[i] = new double[xsize];
       forecast_squareaverage[i] = new double*[xsize];
       forecast_persistent_squareaverage[i] = new double*[xsize];
       observation_squareaverage[i] = new double*[xsize];
@@ -302,11 +301,14 @@ int main(int argc, char * argv[])
    initialize_network_Eulerian(bias, weight, y_start, y_end, x_start, x_end, number_total_layers, number_neurons, x_width, y_width, agree_value, inverse_sigmoid_function, inverse_sigmoid_function_derivative);
    time_t start_cputime;
    time(&start_cputime);
+   
+   // Additional variables
       
    std::string slashstring = "/", yearstring, filename_string;
-   //std::stringstream ss;
    int counter;
    double lat, lon, cellsize;
+   long long int batch_count = 0, output_batch_count = 0, overall_batch_count = 0, validation_batch_count = 0;
+
    for(int epoch = 0; epoch < epochs; epoch ++){
       
       // Loop through directories for range of years in training set
@@ -315,10 +317,9 @@ int main(int argc, char * argv[])
       for(int year = firstyear; year <= lastyear; year++){
          std::stringstream ss;
          ss << year;
-         //indir = topdir + station + slashstring + ss.str() + "/reduced_esri";
          indir = topdir + station + slashstring + ss.str() + "/binary_esri";
          
-         // Iterate over files using boost
+         // Iterate over files using Boost
          
          boost::filesystem::path targetDir(indir);
          boost::filesystem::directory_iterator it(targetDir), eod;
@@ -333,9 +334,8 @@ int main(int argc, char * argv[])
                   
                   parse_time(p.filename().string(), year, counter, time_depth, minutes);
                   
-                  // Read data from file
+                  // Read radar data prepared in uniform binary format
                   
-                  //std::cout << p << std::endl;
                   read_from_file_binary_limited(p.string(), xsize, ysize, x_start - (x_width - 1) / 2, x_end + (x_width - 1) / 2, y_start - (y_width - 1) / 2, y_end + (y_width - 1) / 2, counter % time_depth, time_depth, data);
                   
                   // Feed forward through neural network
@@ -349,19 +349,23 @@ int main(int argc, char * argv[])
                      increment_neural_network(y_start, y_end, x_start, x_end, number_total_layers, number_neurons, bias, weight, dcost_dbias, dcost_dweight, learning_rate, &batch_count, &output_batch_count);
                      if(output_batch_count >= batch_size * batches_per_output){
                         
-                        // Output neural network
+                        // Output neural network biases and weights
+                        // and average quadratic costs for training set
                         
                         output_neural_network(output_directory, epoch, start_cputime, y_start, y_end, x_start, x_end, number_total_layers, number_neurons, bias, weight, cost, &output_batch_count, &overall_batch_count, &do_delete);
                         do_delete = 0;
                      }
                   }
-                  
                   counter ++;
                }
             }
          }
       }
       if(epoch == 0){
+         
+         // Output average quadratic costs and forecast-observation correlations for training set
+         // assuming Eulerian persistence (static radar pattern)
+         
          output_persistent_cost(output_directory, y_start, y_end, x_start, x_end, number_total_layers, number_neurons, cost_persistent, overall_batch_count + output_batch_count + batch_count);
       }
       if((firstyear_validate > 0)&&(epoch % validate_skip == 0)){
@@ -372,10 +376,9 @@ int main(int argc, char * argv[])
          for(int year = firstyear_validate; year <= lastyear_validate; year++){
             std::stringstream ss;
             ss << year;
-            //indir = topdir + station + slashstring + ss.str() + "/reduced_esri";
             indir = topdir + station + slashstring + ss.str() + "/binary_esri";
             
-            // Iterate over files using boost
+            // Iterate over files using Boost
             
             boost::filesystem::path targetDir(indir);
             boost::filesystem::directory_iterator it(targetDir), eod;
@@ -390,9 +393,8 @@ int main(int argc, char * argv[])
                      
                      parse_time(p.filename().string(), year, counter, time_depth, minutes);
                      
-                     // Read data from file
+                     // Read radar data prepared in uniform binary format
                      
-                     //std::cout << p << std::endl;
                      read_from_file_binary_limited(p.string(), xsize, ysize, x_start - (x_width - 1) / 2, x_end + (x_width - 1) / 2, y_start - (y_width - 1) / 2, y_end + (y_width - 1) / 2, counter % time_depth, time_depth, data);
                      
                      // Calculate cost
@@ -404,6 +406,10 @@ int main(int argc, char * argv[])
             }
          }
       }
+
+      // Output average quadratic costs and forecast-observation correlations for validation set,
+      // obtained both from the neural network and (for comparison) from assuming Eulerian persistence
+
       output_validation_cost_training_count(output_directory, epoch, start_cputime, y_start, y_end, x_start, x_end, number_total_layers, number_neurons, cost_validation, cost_validation_persistent, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage, &validation_batch_count, &do_delete_validate, overall_batch_count + output_batch_count + batch_count);
       do_delete_validate = 0;
    }
@@ -449,7 +455,6 @@ int main(int argc, char * argv[])
       delete[] cost_validation[i];
       delete[] dcost_dbias[i];
       delete[] dcost_dweight[i];
-      //delete[] squareaverage[i];
       delete[] forecast_squareaverage[i];
       delete[] forecast_persistent_squareaverage[i];
       delete[] observation_squareaverage[i];
@@ -464,7 +469,6 @@ int main(int argc, char * argv[])
    delete[] cost_validation;
    delete[] dcost_dbias;
    delete[] dcost_dweight;
-   //delete[] squareaverage;
    delete[] forecast_squareaverage;
    delete[] forecast_persistent_squareaverage;
    delete[] observation_squareaverage;
