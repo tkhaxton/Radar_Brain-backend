@@ -9,10 +9,6 @@
 
 void parse_time(std::string filename_string, int year, int counter, int time_depth, double *minutes)
 {
-   
-   // Parse the date and time in the radar data file name,
-   // convert to the number of minutes since 12am, Jan 1, 1970
-   
    int month;
    struct tm timetm;
    time_t timet;
@@ -40,11 +36,6 @@ void parse_time(std::string filename_string, int year, int counter, int time_dep
 
 void read_from_file_binary_limited(std::string filestring, int xsize, int ysize, int x_begin, int x_finish, int y_begin, int y_finish, int counter, int time_bins, float ***data)
 {
-   
-   // Read in a rectangular block of data with indices (x_start <= x < x_finish,
-   // y_start <= y < y_finish), from data file with indices (0 <= x < xsize,
-   // 0 <= y < ysize)
-   
    std::ifstream infile;
    infile.open(filestring.c_str(),std::ios::in);
    
@@ -66,17 +57,7 @@ void read_from_file_binary_limited(std::string filestring, int xsize, int ysize,
 }
 
 void initialize_network_Eulerian(double ****bias, double *****weight, int y_start, int y_end, int x_start, int x_end, int number_total_layers, int *number_neurons, int x_width, int y_width, double agree_value, double (*activation_function_inverse)(double), double (*activation_function_inverse_derivative)(double))
-{
-
-   // Create a chain of neurons leading from input to output that enforces
-   // out_i(in) = in and d(out_in)/d(x)|_{x = in} = 1
-   // for in = most recent radar data at the central location
-   // and {out_i} = the set of all output radar predictions.
-   
-   // Because the activation function is nonlinear, these requirements
-   // cannot be enforced in general. Instead, enforce them for a particular
-   // value of the decibel reflectivity (dBZ = agree_value).
-   
+{   
    int chain_index;
    double myweight = activation_function_inverse_derivative(agree_value);
    double mybias = activation_function_inverse(agree_value) - myweight * agree_value;
@@ -141,7 +122,6 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
       difference = minutes[(counter - time_depth_future + 1) % time_depth] - minutes[(counter - time_depth_future - i) % time_depth];
       number_intervals = (int) (difference/interval + 0.5);
       if(number_intervals != i + 1){
-         //std::cout << "past difference " << difference << " != (" << i << " + 1) x " << interval << std::endl;
          return;
       }
    }
@@ -149,13 +129,16 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
       difference = minutes[(counter - time_depth_future + 1 + i) % time_depth] - minutes[(counter - time_depth_future + 1) % time_depth];
       number_intervals = (int) (difference/interval + 0.5);
       if(number_intervals != i){
-         //std::cout << "future difference " << difference << " != " << i << " x " << interval << std::endl;
          return;
       }
    }
    
    int y_buffer = (y_width - 1) / 2;
    int x_buffer = (x_width - 1) / 2;
+   
+   // Feed forward and backpropagate for potentially many independent neural networks located at positions
+   // y_start <= y < y_end, x_start <= x < x_end.
+   
    for(i = y_start; i < y_end; i ++){
       for(j = x_start; j < x_end; j ++){
          

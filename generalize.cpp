@@ -24,9 +24,10 @@ int main(int argc, char * argv[])
    int xsize = 300;
    int ysize = 300;
       
-   // min_dBZ and max_dBZ are used to map decibel reflectivity dBZ to the interval (0, 1)
-   // set min_dBZ and max_dBZ beyond dBZ range (0, 75) so derivative of cross entropy cost
-   // will be defined even when dBZ forecast is to be 0 or 75
+   // min_dBZ and max_dBZ are used to map decibel reflectivity dBZ to the
+   // interval (0, 1). min_dBZ and max_dBZ are set beyond dBZ range (0, 75)
+   // so the derivative of cross entropy cost will be defined even when the
+   // forecast dBZ is 0 or 75.
    
    double min_dBZ = -5;
    double max_dBZ = 80;
@@ -239,6 +240,10 @@ int main(int argc, char * argv[])
          weight_average[k][l] = new double[number_neurons[k - 1]];
       }
    }
+   
+   // Nest neural network arrays location on the outside because independent
+   // neural networks are created for each location.
+   
    for(int i = y_start_test; i < y_end_test; i ++){
       cost[i] = new double*[xsize];
       cost_persistent[i] = new double*[xsize];

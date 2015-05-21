@@ -25,9 +25,10 @@ int main(int argc, char * argv[])
    int ysize = 300;
    int do_delete = 1, do_delete_validate = 1;
    
-   // min_dBZ and max_dBZ are used to map decibel reflectivity dBZ to the interval (0, 1)
-   // set min_dBZ and max_dBZ beyond dBZ range (0, 75) so derivative of cross entropy cost
-   // will be defined even when dBZ forecast is to be 0 or 75
+   // min_dBZ and max_dBZ are used to map decibel reflectivity dBZ to the
+   // interval (0, 1). min_dBZ and max_dBZ are set beyond dBZ range (0, 75)
+   // so the derivative of cross entropy cost will be defined even when the
+   // forecast dBZ is 0 or 75.
    
    double min_dBZ = -5;
    double max_dBZ = 80;
@@ -235,9 +236,8 @@ int main(int argc, char * argv[])
    double ***forecast_observation_correlation = new double**[ysize];
    double ***forecast_observation_correlation_persistent = new double**[ysize];
    
-   // Nest by location on outside because locations are treated independently
-   // Note that this code can be used to generate independent neural networks for each location,
-   // but this would require significant cpu time (i.e. multiple cores)
+   // Nest neural network arrays location on the outside because independent
+   // neural networks are created for each location.
    
    for(int i = y_start; i < y_end; i ++){
       bias[i] = new double**[xsize];
@@ -262,9 +262,6 @@ int main(int argc, char * argv[])
          cost_validation_persistent[i][j] = new double[number_neurons[number_total_layers - 1]];
          dcost_dbias[i][j] = new double*[number_total_layers];
          dcost_dweight[i][j] = new double**[number_total_layers];
-         
-         // Create bias, weight, and derivative arrays for hidden and output layers
-
          for(int k = 1; k < number_total_layers; k ++){
             bias[i][j][k] = new double[number_neurons[k]];
             weight[i][j][k] = new double*[number_neurons[k]];
@@ -338,7 +335,9 @@ int main(int argc, char * argv[])
                   
                   read_from_file_binary_limited(p.string(), xsize, ysize, x_start - (x_width - 1) / 2, x_end + (x_width - 1) / 2, y_start - (y_width - 1) / 2, y_end + (y_width - 1) / 2, counter % time_depth, time_depth, data);
                   
-                  // Feed forward through neural network
+                  // Feed forward through neural network and backpropagate to
+                  // calculate the derivative of the cross entropy cost function
+                  // with respect to the weights and biases.
                   
                   feed_forward_and_backpropagate(data, min_dBZ, max_dBZ, y_start, y_end, x_start, x_end, minutes, counter, time_depth, time_depth_past, time_depth_future, interval, y_width, x_width, number_total_layers, number_neurons, activation, weighted_input, bias, weight, error, cost, cost_persistent, dcost_dbias, dcost_dweight, &batch_count, sigmoid_function, sigmoid_function_derivative, quadratic_function, cross_entropy_function_derivative);
                   
@@ -363,8 +362,9 @@ int main(int argc, char * argv[])
       }
       if(epoch == 0){
          
-         // Output average quadratic costs and forecast-observation correlations for training set
-         // assuming Eulerian persistence (static radar pattern)
+         // Output average quadratic costs and forecast-observation correlations
+         // for the training set assuming Eulerian persistence (static radar
+         // pattern)
          
          output_persistent_cost(output_directory, y_start, y_end, x_start, x_end, number_total_layers, number_neurons, cost_persistent, overall_batch_count + output_batch_count + batch_count);
       }
@@ -407,8 +407,9 @@ int main(int argc, char * argv[])
          }
       }
 
-      // Output average quadratic costs and forecast-observation correlations for validation set,
-      // obtained both from the neural network and (for comparison) from assuming Eulerian persistence
+      // Output average quadratic costs and forecast-observation correlations
+      // for the validation set, obtained both from the neural network and
+      // (for comparison) from assuming Eulerian persistence
 
       output_validation_cost_training_count(output_directory, epoch, start_cputime, y_start, y_end, x_start, x_end, number_total_layers, number_neurons, cost_validation, cost_validation_persistent, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage, &validation_batch_count, &do_delete_validate, overall_batch_count + output_batch_count + batch_count);
       do_delete_validate = 0;
