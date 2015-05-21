@@ -334,10 +334,11 @@ int main(int argc, char * argv[])
                   // Read radar data prepared in uniform binary format
                   
                   read_from_file_binary_limited(p.string(), xsize, ysize, x_start - (x_width - 1) / 2, x_end + (x_width - 1) / 2, y_start - (y_width - 1) / 2, y_end + (y_width - 1) / 2, counter % time_depth, time_depth, data);
-                  
-                  // Feed forward through neural network and backpropagate to
-                  // calculate the derivative of the cross entropy cost function
-                  // with respect to the weights and biases.
+
+                  // Feed forward through the neural network and backpropagate
+                  // to calculate the derivative of the cross entropy cost
+                  // function with respect to the weights and biases.
+                  // Also calculate the average quadratic cost.
                   
                   feed_forward_and_backpropagate(data, min_dBZ, max_dBZ, y_start, y_end, x_start, x_end, minutes, counter, time_depth, time_depth_past, time_depth_future, interval, y_width, x_width, number_total_layers, number_neurons, activation, weighted_input, bias, weight, error, cost, cost_persistent, dcost_dbias, dcost_dweight, &batch_count, sigmoid_function, sigmoid_function_derivative, quadratic_function, cross_entropy_function_derivative);
                   
@@ -397,7 +398,11 @@ int main(int argc, char * argv[])
                      
                      read_from_file_binary_limited(p.string(), xsize, ysize, x_start - (x_width - 1) / 2, x_end + (x_width - 1) / 2, y_start - (y_width - 1) / 2, y_end + (y_width - 1) / 2, counter % time_depth, time_depth, data);
                      
-                     // Calculate cost
+                     // Feed forward throuh the neural network for the
+                     // validation set, calculating the quadratic costs and
+                     // forecast-observation correlations using both the
+                     // fed-forward outputs and the outpust assuming Eulerian
+                     // persistence
                      
                      feed_forward_validate(data, min_dBZ, max_dBZ, y_start, y_end, x_start, x_end, minutes, counter, time_depth, time_depth_past, time_depth_future, interval, y_width, x_width, number_total_layers, number_neurons, activation, weighted_input, bias, weight, cost_validation, cost_validation_persistent, &validation_batch_count, sigmoid_function, sigmoid_function_derivative, quadratic_function, epoch, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage);
                      counter ++;

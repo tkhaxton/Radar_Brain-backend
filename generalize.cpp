@@ -294,7 +294,7 @@ int main(int argc, char * argv[])
       ss << year;
       indir = topdir + station + slashstring + ss.str() + "/binary_esri";
       
-      // Iterate over files using boost
+      // Iterate over files using Boost
       
       boost::filesystem::path targetDir(indir);
       boost::filesystem::directory_iterator it(targetDir), eod;
@@ -313,7 +313,10 @@ int main(int argc, char * argv[])
                
                read_from_file_binary_limited(p.string(), xsize, ysize, x_start_test - (x_width - 1) / 2, x_end_test + (x_width - 1) / 2, y_start_test - (y_width - 1) / 2, y_end_test + (y_width - 1) / 2, counter % time_depth, time_depth, data);
                
-               // Feed neural network forward through generalization set
+               // Feed forward through the neural network and calculate the
+               // average quadratic cost and forecast-observation correlation
+               // for both the neural network forecast and the Eulerian
+               // persistence forecast
                
                feed_forward_generalize(data, min_dBZ, max_dBZ, y_start_test, y_end_test, x_start_test, x_end_test, minutes, counter, time_depth, time_depth_past, time_depth_future, interval, y_width, x_width, number_total_layers, number_neurons, activation, weighted_input, bias_average, weight_average, cost, cost_persistent, &batch_count, sigmoid_function, sigmoid_function_derivative, quadratic_function, 0, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage);
                counter ++;
@@ -322,8 +325,9 @@ int main(int argc, char * argv[])
       }
    }
    
-   // Output average quadratic costs and forecast-observation correlations on generalization set,
-   // obtained both from the neural network and (for comparison) from assuming Eulerian persistence
+   // Output average quadratic costs and forecast-observation correlations for
+   // the generalization set, obtained both from the neural network and (for
+   // comparison) from assuming Eulerian persistence (static radar pattern)
    
    output_generalization_cost(output_directory, y_start_test, y_end_test, x_start_test, x_end_test, number_total_layers, number_neurons, cost, cost_persistent, forecast_observation_correlation, forecast_observation_correlation_persistent, forecast_squareaverage, forecast_persistent_squareaverage, observation_squareaverage, &batch_count);
    
