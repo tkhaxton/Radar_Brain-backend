@@ -55,24 +55,38 @@ void input_neural_network(std::string input_directory, int y_start, int y_end, i
 // Outputs the average costs assuming Eulerian persistence.
 void output_persistent_cost(std::string output_directory, int y_start, int y_end, int x_start, int x_end, int number_total_layers, int *number_neurons, double ***cost_persistent, long long int batch_count);
 
+// Outputs the average costs and forecast-observation correlations for the
+// validation set, both from the neural network and from assuming Eulerian
+// persistence
 void output_validation_cost_training_count(std::string output_directory, int epoch, time_t start_cputime, int y_start, int y_end, int x_start, int x_end, int number_total_layers, int *number_neurons, double ***cost, double ***cost_persistent, double ***forecast_observation_correlation, double ***forecast_observation_correlation_persistent, double ***forecast_squareaverage, double ***forecast_persistent_squareaverage, double ***observation_squareaverage, long long int *pbatch_count, int *pdo_delete, long long int training_batch_count);
 
+// Outputs the average costs and forecast-observation correlations for
+// the generalization set, both from the neural network and  from assuming
+// Eulerian persistence
 void output_generalization_cost(std::string output_directory, int y_start, int y_end, int x_start, int x_end, int number_total_layers, int *number_neurons, double ***cost, double ***cost_persistent, double ***forecast_observation_correlation, double ***forecast_observation_correlation_persistent, double ***forecast_squareaverage, double ***forecast_persistent_squareaverage, double ***observation_squareaverage, long long int *pbatch_count);
 
+// Returns 1/(1+exp(-z)
 double sigmoid_function(double z);
 
+// Returns exp(-z)/pow(1+exp(-z), 2)
 double sigmoid_function_derivative(double z);
 
+// Returns -ln(1/z-1)
 double inverse_sigmoid_function(double z);
 
+// Returns 1/(z+z*z)
 double inverse_sigmoid_function_derivative(double z);
 
+// Returns pow(forecast - observation, 2)/2
 double quadratic_function(double observation, double forecast);
 
+// Returns forecast - observation
 double quadratic_function_derivative(double observation, double forecast);
 
+// Returns -observation * ln(forecast) + (observation - 1) * ln(1 - forecast)
 double cross_entropy_function(double observation, double forecast);
 
+// Returns -observation / forecast + (1 - observation) / (1 - forecast)
 double cross_entropy_function_derivative(double observation, double forecast);
 
 

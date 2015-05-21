@@ -114,7 +114,8 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
    }
    int time_slot, i, j, k, l, m, y_slot;
    
-   // Check that times are one-to-one with expected spacing
+   // Only train with the data if the times are one-to-one with the expected
+   // spacing
    
    double difference, observation;
    int number_intervals;
@@ -136,8 +137,8 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
    int y_buffer = (y_width - 1) / 2;
    int x_buffer = (x_width - 1) / 2;
    
-   // Feed forward and backpropagate for potentially many independent neural networks located at positions
-   // y_start <= y < y_end, x_start <= x < x_end.
+   // Feed forward and backpropagate for potentially many independent neural
+   // networks located at positions y_start <= y < y_end, x_start <= x < x_end.
    
    for(i = y_start; i < y_end; i ++){
       for(j = x_start; j < x_end; j ++){
@@ -146,7 +147,8 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
          
          for(k = 0; k < time_depth_past; k ++){
             
-            // Data runs forward in time but weight indexing runs backward in time
+            // Data runs forward in time but weight indexing runs backward in
+            // time
             
             time_slot = (counter - time_depth_future - k) % time_depth;
             for(l = 0; l < y_width; l ++){
@@ -178,16 +180,16 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
             time_slot = (counter - time_depth_future + 1 + l) % time_depth;
             observation = (data[time_slot][i][j] - min_dBZ)/(max_dBZ - min_dBZ);
             
-            // Calculate cost function to monitor
+            // Calculate cost function to monitor progress
             
             cost[i][j][l] += cost_function(observation, activation[number_total_layers - 1][l]);
-            //std::cout << "cost " << cost[i][j][l] << "\n";
             
             // Calculate cost for Eulerian persistence
             
             cost_persistent[i][j][l] += cost_function(observation, activation[0][k*y_width*x_width + (y_width - 1)/2*x_width + (x_width - 1)/2]);
             
-            // Calculate "error" in output layer (actually dcost / d(weighted input))
+            // Calculate "error" in output layer
+            // (actually dcost / d(weighted input))
             
             error[number_total_layers - 1][l] = cost_derivative(observation, activation[number_total_layers - 1][l]) * activation_function_derivative(weighted_input[number_total_layers - 1][l]);
             dcost_dbias[i][j][number_total_layers - 1][l] += error[number_total_layers - 1][l];
@@ -214,7 +216,6 @@ void feed_forward_and_backpropagate(float ***data, double min_dBZ, double max_dB
       }
    }
    (*pbatch_count) = (*pbatch_count) + 1;
-   //std::cout << "batch count now " << (*pbatch_count) << "\n";
 }
 
 void feed_forward_validate(float ***data, double min_dBZ, double max_dBZ, int y_start, int y_end, int x_start, int x_end, double *minutes, int counter, int time_depth, int time_depth_past, int time_depth_future, double interval, int y_width, int x_width, int number_total_layers, int *number_neurons, double **activation, double **weighted_input, double ****bias, double *****weight, double ***cost, double ***cost_persistent, long long int *pbatch_count, double (*activation_function)(double), double (*activation_function_derivative)(double), double (*cost_function)(double, double), int epoch, double ***forecast_observation_correlation, double ***forecast_observation_correlation_persistent, double ***forecast_squareaverage, double ***forecast_persistent_squareaverage, double ***observation_squareaverage)
@@ -224,7 +225,8 @@ void feed_forward_validate(float ***data, double min_dBZ, double max_dBZ, int y_
    }
    int time_slot, i, j, k, l, m, y_slot;
    
-   // Check that times are one-to-one with expected spacing
+   // Only train with the data if the times are one-to-one with the expected
+   // spacing
    
    double difference, observation, observation0;
    int number_intervals;
@@ -251,7 +253,8 @@ void feed_forward_validate(float ***data, double min_dBZ, double max_dBZ, int y_
          
          for(k = 0; k < time_depth_past; k ++){
             
-            // Data runs forward in time but weight indexing runs backward in time
+            // Data runs forward in time but weight indexing runs backward in
+            // time
             
             time_slot = (counter - time_depth_future - k) % time_depth;
             for(l = 0; l < y_width; l ++){
@@ -318,7 +321,8 @@ void feed_forward_generalize(float ***data, double min_dBZ, double max_dBZ, int 
    }
    int time_slot, i, j, k, l, m, y_slot;
    
-   // Check that times are one-to-one with expected spacing
+   // Only train with the data if the times are one-to-one with the expected
+   // spacing
    
    double difference, observation, observation0;
    int number_intervals;
@@ -345,7 +349,8 @@ void feed_forward_generalize(float ***data, double min_dBZ, double max_dBZ, int 
          
          for(k = 0; k < time_depth_past; k ++){
 
-            // Data runs forward in time but weight indexing runs backward in time
+            // Data runs forward in time but weight indexing runs backward in
+            // time
 
             time_slot = (counter - time_depth_future - k) % time_depth;
             for(l = 0; l < y_width; l ++){
@@ -566,7 +571,6 @@ void output_neural_network(std::string output_directory, int epoch, time_t start
    for(i = y_start; i < y_end; i ++){
       for(j = x_start; j < x_end; j ++){
          for(l = 0; l < number_neurons[number_total_layers - 1]; l ++){
-            //std::cout << "cost = " << cost[i][j][l] << " / " << (*pbatch_count) << "\n";
             cost[i][j][l] /= (*pbatch_count);
             outfile << " " << cost[i][j][l];
             average += cost[i][j][l];
@@ -636,6 +640,9 @@ void input_neural_network(std::string input_directory, int y_start, int y_end, i
       for(i = 0; i < 3; i ++){
          std::getline(iss, item, ' ');
       }
+      
+      // Read biases, add to averages over possibly many positions
+      
       for(i = y_start; i < y_end; i ++){
          for(j = x_start; j < x_end; j ++){
             for(l = 0; l < number_neurons[k]; l ++){
@@ -669,6 +676,8 @@ void input_neural_network(std::string input_directory, int y_start, int y_end, i
       for(i = 0; i < 3; i ++){
          std::getline(iss2, item, ' ');
       }
+      
+      // Read weights, add to averages over possibly many positions
             
       for(i = y_start; i < y_end; i ++){
          for(j = x_start; j < x_end; j ++){
@@ -797,7 +806,8 @@ void output_validation_cost(std::string output_directory, int epoch, time_t star
    outfile << epoch << " " << relative_cputime << " " << average << " " << variance << "\n";
    outfile.close();
    
-   // Output normalized forecast-observation correlation for all pixels and output neurons
+   // Output normalized forecast-observation correlation for all pixels and
+   // output neurons
    
    average = variance = count = 0;
    suffix = "/correlation_validate_individual.txt";
@@ -819,17 +829,14 @@ void output_validation_cost(std::string output_directory, int epoch, time_t star
    for(i = y_start; i < y_end; i ++){
       for(j = x_start; j < x_end; j ++){
          for(l = 0; l < number_neurons[number_total_layers - 1]; l ++){
-            //forecast_observation_correlation[i][j][l] /= sqrt(squareaverage[i][j] * forecast_squareaverage[i][j][l]);
-            forecast_observation_correlation[i][j][l] /= sqrt(observation_squareaverage[i][j][l] * forecast_squareaverage[i][j][l]);
+             forecast_observation_correlation[i][j][l] /= sqrt(observation_squareaverage[i][j][l] * forecast_squareaverage[i][j][l]);
             outfile << " " << forecast_observation_correlation[i][j][l];
             average += forecast_observation_correlation[i][j][l];
             variance += forecast_observation_correlation[i][j][l] * forecast_observation_correlation[i][j][l];
             count += 1;
-            //forecast_observation_correlation[i][j][l] = 0;
             forecast_squareaverage[i][j][l] = 0;
             if(epoch > 0) observation_squareaverage[i][j][l] = 0;
          }
-         //if(epoch > 0) squareaverage[i][j] = 0;
       }
    }
    outfile << "\n";
@@ -916,7 +923,8 @@ void output_validation_cost(std::string output_directory, int epoch, time_t star
       outfile << average << " " << variance << "\n";
       outfile.close();
 
-      // Output normalized persistent forecast-observation correlation for all pixels and output neurons
+      // Output normalized persistent forecast-observation correlation for all
+      // pixels and output neurons
       
       average = variance = count = 0;
       suffix = "/correlation_validate_persistent_individual.txt";
@@ -936,24 +944,14 @@ void output_validation_cost(std::string output_directory, int epoch, time_t star
       for(i = y_start; i < y_end; i ++){
          for(j = x_start; j < x_end; j ++){
             for(l = 0; l < number_neurons[number_total_layers - 1]; l ++){
-               //std::cout << "output " << i << " " << j << " " << l << " " <<forecast_observation_correlation_persistent[i][j][l] << " " << squareaverage[i][j] << "\n";
-               //if(l ==1){
-                  //std::cout << "output " << i << " " << j << " " << l << " " <<forecast_observation_correlation_persistent[i][j][l] << " " << forecast_persistent_squareaverage[i][j][l] << " " << observation_squareaverage[i][j][l] << " " << forecast_observation_correlation_persistent[i][j][l] / sqrt(forecast_persistent_squareaverage[i][j][l] * observation_squareaverage[i][j][l]) << " " << (*pbatch_count) << "\n";
-                  //exit(1);
-               //}
-               //forecast_observation_correlation_persistent[i][j][l] /= squareaverage[i][j];
                forecast_observation_correlation_persistent[i][j][l] /= sqrt(forecast_persistent_squareaverage[i][j][l] * observation_squareaverage[i][j][l]);
-               //forecast_observation_correlation_persistent[i][j][l] /= sqrt(squareaverage[i][j] * observation_squareaverage[i][j][l]);
                outfile << forecast_observation_correlation_persistent[i][j][l] << " ";
                average += forecast_observation_correlation_persistent[i][j][l];
                variance += forecast_observation_correlation_persistent[i][j][l] * forecast_observation_correlation_persistent[i][j][l];
                count += 1;
-               //forecast_observation_correlation_persistent[i][j][l] = 0;
                forecast_persistent_squareaverage[i][j][l] = 0;
                observation_squareaverage[i][j][l] = 0;
             }
-            //exit(1);
-            //squareaverage[i][j] = 0;
          }
       }
       outfile << "\n";
@@ -1163,7 +1161,8 @@ void output_generalization_cost(std::string output_directory, int y_start, int y
    }
    outfile.close();
    
-   // Output Eulerian persistence forecast-observation correlation map for each forecast time
+   // Output Eulerian persistence forecast-observation correlation map for each
+   // forecast time
    
    for(i = 0; i < y_end - y_start; i ++){
       for(j = 0; j < x_end - x_start; j ++){
@@ -1191,7 +1190,8 @@ void output_generalization_cost(std::string output_directory, int y_start, int y
       outfile.close();
    }
    
-   // Output Eulerian persistence forecast-observation correlation time average map
+   // Output Eulerian persistence forecast-observation correlation time average
+   // map
    
    suffix = "/correlation_persistent_timeaverage_map.txt";
    filename = output_directory + suffix;
@@ -1205,7 +1205,8 @@ void output_generalization_cost(std::string output_directory, int y_start, int y
    }
    outfile.close();
    
-   // Output Eulerian persistence forecast-observation correlation time series, averaged over space
+   // Output Eulerian persistence forecast-observation correlation time series,
+   // averaged over space
    
    suffix = "/correlation_persistent_timeseries.txt";
    filename = output_directory + suffix;
@@ -1283,7 +1284,8 @@ void output_validation_cost_training_count(std::string output_directory, int epo
    outfile << training_batch_count << " " << epoch << " " << relative_cputime << " " << average << " " << variance << "\n";
    outfile.close();
    
-   // Output normalized forecast-observation correlation for all pixels and output neurons
+   // Output normalized forecast-observation correlation for all pixels and
+   // output neurons
    
    average = variance = count = 0;
    suffix = "/correlation_validate_individual.txt";
@@ -1305,17 +1307,14 @@ void output_validation_cost_training_count(std::string output_directory, int epo
    for(i = y_start; i < y_end; i ++){
       for(j = x_start; j < x_end; j ++){
          for(l = 0; l < number_neurons[number_total_layers - 1]; l ++){
-            //forecast_observation_correlation[i][j][l] /= sqrt(squareaverage[i][j] * forecast_squareaverage[i][j][l]);
             forecast_observation_correlation[i][j][l] /= sqrt(observation_squareaverage[i][j][l] * forecast_squareaverage[i][j][l]);
             outfile << " " << forecast_observation_correlation[i][j][l];
             average += forecast_observation_correlation[i][j][l];
             variance += forecast_observation_correlation[i][j][l] * forecast_observation_correlation[i][j][l];
             count += 1;
-            //forecast_observation_correlation[i][j][l] = 0;
             forecast_squareaverage[i][j][l] = 0;
             if(epoch > 0) observation_squareaverage[i][j][l] = 0;
          }
-         //if(epoch > 0) squareaverage[i][j] = 0;
       }
    }
    outfile << "\n";
@@ -1353,8 +1352,7 @@ void output_validation_cost_training_count(std::string output_directory, int epo
    variance = sqrt(variance / count - average * average);
    outfile << training_batch_count << " " << epoch << " " << relative_cputime << " " << average << " " << variance << "\n";
    outfile.close();
-   
-   
+
    if(epoch==0){
    
       // Output Eulerian persistence cost for all pixels and output neurons
@@ -1403,7 +1401,8 @@ void output_validation_cost_training_count(std::string output_directory, int epo
       outfile << average << " " << variance << "\n";
       outfile.close();
       
-      // Output normalized persistent forecast-observation correlation for all pixels and output neurons
+      // Output normalized persistent forecast-observation correlation for all
+      // pixels and output neurons
       
       average = variance = count = 0;
       suffix = "/correlation_validate_persistent_individual.txt";
@@ -1423,24 +1422,14 @@ void output_validation_cost_training_count(std::string output_directory, int epo
       for(i = y_start; i < y_end; i ++){
          for(j = x_start; j < x_end; j ++){
             for(l = 0; l < number_neurons[number_total_layers - 1]; l ++){
-               //std::cout << "output " << i << " " << j << " " << l << " " <<forecast_observation_correlation_persistent[i][j][l] << " " << squareaverage[i][j] << "\n";
-               //if(l ==1){
-               //std::cout << "output " << i << " " << j << " " << l << " " <<forecast_observation_correlation_persistent[i][j][l] << " " << forecast_persistent_squareaverage[i][j][l] << " " << observation_squareaverage[i][j][l] << " " << forecast_observation_correlation_persistent[i][j][l] / sqrt(forecast_persistent_squareaverage[i][j][l] * observation_squareaverage[i][j][l]) << " " << (*pbatch_count) << "\n";
-               //exit(1);
-               //}
-               //forecast_observation_correlation_persistent[i][j][l] /= squareaverage[i][j];
                forecast_observation_correlation_persistent[i][j][l] /= sqrt(forecast_persistent_squareaverage[i][j][l] * observation_squareaverage[i][j][l]);
-               //forecast_observation_correlation_persistent[i][j][l] /= sqrt(squareaverage[i][j] * observation_squareaverage[i][j][l]);
                outfile << forecast_observation_correlation_persistent[i][j][l] << " ";
                average += forecast_observation_correlation_persistent[i][j][l];
                variance += forecast_observation_correlation_persistent[i][j][l] * forecast_observation_correlation_persistent[i][j][l];
                count += 1;
-               //forecast_observation_correlation_persistent[i][j][l] = 0;
                forecast_persistent_squareaverage[i][j][l] = 0;
                observation_squareaverage[i][j][l] = 0;
             }
-            //exit(1);
-            //squareaverage[i][j] = 0;
          }
       }
       outfile << "\n";
